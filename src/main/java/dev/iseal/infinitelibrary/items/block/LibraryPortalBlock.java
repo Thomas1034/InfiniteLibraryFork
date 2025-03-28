@@ -4,7 +4,10 @@ import com.mojang.datafixers.util.Pair;
 import dev.iseal.infinitelibrary.IL;
 import dev.iseal.infinitelibrary.registry.DimensionRegistry;
 import dev.iseal.infinitelibrary.registry.StructureRegistry;
-import net.minecraft.block.*;
+import net.minecraft.block.AbstractBlock;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
 import net.minecraft.block.piston.PistonBehavior;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
@@ -36,9 +39,12 @@ import java.util.Collections;
 
 public class LibraryPortalBlock extends Block {
     public static final EnumProperty<Direction.Axis> AXIS = Properties.HORIZONTAL_AXIS;
-    private static final RegistryKey<World> LIBRARY_WORLD_KEY = RegistryKey.of(RegistryKeys.WORLD, DimensionRegistry.LIBRARY_ID);
     protected static final VoxelShape X_SHAPE = Block.createCuboidShape(0.0, 0.0, 6.0, 16.0, 16.0, 10.0);
     protected static final VoxelShape Z_SHAPE = Block.createCuboidShape(6.0, 0.0, 0.0, 10.0, 16.0, 16.0);
+    private static final RegistryKey<World> LIBRARY_WORLD_KEY = RegistryKey.of(
+            RegistryKeys.WORLD,
+            DimensionRegistry.LIBRARY_ID
+    );
     private Structure coreRoomStructure;
 
     public LibraryPortalBlock() {
@@ -49,55 +55,16 @@ public class LibraryPortalBlock extends Block {
                 .strength(-1.0F)
                 .sounds(BlockSoundGroup.GLASS)
                 .luminance(state -> 11)
-                .pistonBehavior(PistonBehavior.BLOCK)
-        );
-    }
-
-    @Override
-    public VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-        switch (state.get(AXIS)) {
-            case Z:
-                return Z_SHAPE;
-            case X:
-            default:
-                return X_SHAPE;
-        }
-    }
-
-    @Override
-    public void onEntityCollision(BlockState state, World world, BlockPos pos, Entity entity) {
-        if (world.isClient || !entity.canUsePortals(false)) {
-            return;
-        }
-        if (world instanceof ServerWorld && !entity.hasVehicle() && !entity.hasPassengers()) {
-            ServerWorld library = world.getServer().getWorld(LIBRARY_WORLD_KEY);
-            if (coreRoomStructure == null) {
-                coreRoomStructure = world.getRegistryManager().getOrThrow(RegistryKeys.STRUCTURE).get(StructureRegistry.CORE_ROOM_ID);
-            }
-            // litterally just here to not crash the game
-            library.getChunk(pos);
-            Pair<BlockPos, RegistryEntry<Structure>> pair = library.getChunkManager()
-                    .getChunkGenerator()
-                    .locateStructure(library, RegistryEntryList.of(RegistryEntry.of(coreRoomStructure)), pos, 100, false);
-            BlockPos target = pair.getFirst();
-            int x = target.getX();
-            int z = target.getZ();
-            x+=8;
-            z-=8;
-            if (entity instanceof PlayerEntity plr)
-                plr.teleport(world.getServer().getWorld(LIBRARY_WORLD_KEY), x, 41, z, Collections.emptySet(), ((PlayerEntity) entity).headYaw, entity.getPitch(), true);
-            else
-                entity.teleport(world.getServer().getWorld(LIBRARY_WORLD_KEY), x, 41, z, Collections.emptySet(), entity.getYaw(), entity.getPitch(), true);
-        }
+                .pistonBehavior(PistonBehavior.BLOCK));
     }
 
     @Override
     public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
         if (random.nextInt(100) == 0) {
             world.playSound(
-                    (double)pos.getX() + 0.5,
-                    (double)pos.getY() + 0.5,
-                    (double)pos.getZ() + 0.5,
+                    (double) pos.getX() + 0.5,
+                    (double) pos.getY() + 0.5,
+                    (double) pos.getZ() + 0.5,
                     SoundEvents.BLOCK_PORTAL_AMBIENT,
                     SoundCategory.BLOCKS,
                     0.5F,
@@ -107,19 +74,19 @@ public class LibraryPortalBlock extends Block {
         }
 
         for (int i = 0; i < 4; i++) {
-            double d = (double)pos.getX() + random.nextDouble();
-            double e = (double)pos.getY() + random.nextDouble();
-            double f = (double)pos.getZ() + random.nextDouble();
-            double g = ((double)random.nextFloat() - 0.5) * 0.5;
-            double h = ((double)random.nextFloat() - 0.5) * 0.5;
-            double j = ((double)random.nextFloat() - 0.5) * 0.5;
+            double d = (double) pos.getX() + random.nextDouble();
+            double e = (double) pos.getY() + random.nextDouble();
+            double f = (double) pos.getZ() + random.nextDouble();
+            double g = ((double) random.nextFloat() - 0.5) * 0.5;
+            double h = ((double) random.nextFloat() - 0.5) * 0.5;
+            double j = ((double) random.nextFloat() - 0.5) * 0.5;
             int k = random.nextInt(2) * 2 - 1;
             if (!world.getBlockState(pos.west()).isOf(this) && !world.getBlockState(pos.east()).isOf(this)) {
-                d = (double)pos.getX() + 0.5 + 0.25 * (double)k;
-                g = random.nextFloat() * 2.0F * (float)k;
+                d = (double) pos.getX() + 0.5 + 0.25 * (double) k;
+                g = random.nextFloat() * 2.0F * (float) k;
             } else {
-                f = (double)pos.getZ() + 0.5 + 0.25 * (double)k;
-                j = (random.nextFloat() * 2.0F * (float)k);
+                f = (double) pos.getZ() + 0.5 + 0.25 * (double) k;
+                j = (random.nextFloat() * 2.0F * (float) k);
             }
 
             world.addParticle(ParticleTypes.PORTAL, d, e, f, g, h, j);
@@ -127,8 +94,8 @@ public class LibraryPortalBlock extends Block {
     }
 
     @Override
-    protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
-        return ItemStack.EMPTY;
+    protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+        builder.add(AXIS);
     }
 
     @Override
@@ -150,7 +117,66 @@ public class LibraryPortalBlock extends Block {
     }
 
     @Override
-    protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-        builder.add(AXIS);
+    public VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+        return state.get(AXIS) == Direction.Axis.Z ? Z_SHAPE : X_SHAPE;
+    }
+
+    @Override
+    public void onEntityCollision(BlockState state, World world, BlockPos pos, Entity entity) {
+        if (world.isClient || !entity.canUsePortals(false)) {
+            return;
+        }
+        if (world instanceof ServerWorld && !entity.hasVehicle() && !entity.hasPassengers()) {
+            ServerWorld library = world.getServer().getWorld(LIBRARY_WORLD_KEY);
+            if (coreRoomStructure == null) {
+                coreRoomStructure = world.getRegistryManager()
+                        .getOrThrow(RegistryKeys.STRUCTURE)
+                        .get(StructureRegistry.CORE_ROOM_ID);
+            }
+            // literally just here to not crash the game
+            library.getChunk(pos);
+            Pair<BlockPos, RegistryEntry<Structure>> pair = library.getChunkManager()
+                    .getChunkGenerator()
+                    .locateStructure(
+                            library,
+                            RegistryEntryList.of(RegistryEntry.of(coreRoomStructure)),
+                            pos,
+                            100,
+                            false
+                    );
+            BlockPos target = pair.getFirst();
+            int x = target.getX();
+            int z = target.getZ();
+            x += 8;
+            z -= 8;
+            if (entity instanceof PlayerEntity plr) {
+                plr.teleport(
+                        world.getServer().getWorld(LIBRARY_WORLD_KEY),
+                        x,
+                        41,
+                        z,
+                        Collections.emptySet(),
+                        ((PlayerEntity) entity).headYaw,
+                        entity.getPitch(),
+                        true
+                );
+            } else {
+                entity.teleport(
+                        world.getServer().getWorld(LIBRARY_WORLD_KEY),
+                        x,
+                        41,
+                        z,
+                        Collections.emptySet(),
+                        entity.getYaw(),
+                        entity.getPitch(),
+                        true
+                );
+            }
+        }
+    }
+
+    @Override
+    protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
+        return ItemStack.EMPTY;
     }
 }
